@@ -1,11 +1,26 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-python-dotenv==1.0.0
-redis==5.0.1
-pydantic==2.4.2
-alembic==1.12.1
-python-jose==3.3.0
-passlib==1.7.4
-bcrypt==4.0.1
+# --- Core Framework ---
+fastapi==0.104.1          # Modern, async Python web framework
+uvicorn==0.24.0           # ASGI server for FastAPI
+
+# --- Database & ORM ---
+sqlalchemy==2.0.23         # SQL toolkit and ORM
+psycopg2-binary==2.9.9     # PostgreSQL database driver
+alembic==1.12.1            # Database migrations for SQLAlchemy
+
+# --- Data Validation & Environment ---
+pydantic==2.4.2            # Data validation library (compatible with FastAPI >=0.103)
+python-dotenv==1.0.0       # Load environment variables from .env
+
+# --- Authentication & Security ---
+python-jose==3.3.0         # JWT and JOSE implementation
+passlib==1.7.4             # Password hashing utilities
+bcrypt==4.0.1              # Low-level password hashing (ensure compatibility with Passlib)
+
+# --- Caching & Background Tasks ---
+redis==5.0.1               # Redis client library
+
+# --- Optional Tools ---
+# If you use testing, linting, or async DB features, add:
+# pytest
+# greenlet>=3.0.0
+# httpx

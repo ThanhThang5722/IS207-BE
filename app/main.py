@@ -1,27 +1,14 @@
 from fastapi import FastAPI
-from app.routers import auth, public, user, partner, admin
+from app.routers.customer import cart, history
+from app.routers.public import resorts, search, roomtypes
+from app.routers.partner import partner
+from app.routers.admin import withdraw
+app = FastAPI()
 
-app = FastAPI(title="Resort Booking API")
-
-# Public routes
-app.include_router(public.landing.router, prefix="/", tags=["Public"])
-app.include_router(public.resort.router, prefix="/resorts", tags=["Resorts"])
-
-# Auth routes
-app.include_router(auth.router, prefix="/auth", tags=["Auth"])
-
-# User routes
-app.include_router(user.customer.router, prefix="/user", tags=["User"])
-app.include_router(user.booking.router, prefix="/user/bookings", tags=["User Booking"])
-app.include_router(user.feedback.router, prefix="/user/feedback", tags=["Feedback"])
-app.include_router(user.payment.router, prefix="/user/payment", tags=["Payment"])
-
-# Partner routes
-app.include_router(partner.resort.router, prefix="/partner/resorts", tags=["Partner Resort"])
-app.include_router(partner.room_type.router, prefix="/partner/room-types", tags=["Partner Room Type"])
-app.include_router(partner.booking.router, prefix="/partner/bookings", tags=["Partner Booking"])
-app.include_router(partner.withdraw.router, prefix="/partner/withdraw", tags=["Partner Withdraw"])
-
-# Admin routes
-app.include_router(admin.withdraw_approval.router, prefix="/admin/withdraw", tags=["Admin Withdraw"])
-app.include_router(admin.report.router, prefix="/admin/reports", tags=["Admin Reports"])
+app.include_router(search.router)
+app.include_router(resorts.router)
+app.include_router(roomtypes.router)
+app.include_router(cart.router)
+app.include_router(partner.router)
+app.include_router(history.router)
+app.include_router(withdraw.router)

@@ -1,5 +1,5 @@
 # Hướng dẫn reset dữ liệu
-
+    
 ## Reset Table
 Get-Content .\sql\reset_schema.sql | docker exec -i is207-be-db-1 psql -U user -d fastapi_db -v ON_ERROR_STOP=1
 
@@ -8,3 +8,6 @@ Get-Content .\sql\init.sql | docker exec -i is207-be-db-1 psql -U user -d fastap
 
 ## Thêm dữ liệu mẫu (insert sample data)
 Get-Content .\sql\insert_data.sql | docker exec -i is207-be-db-1 psql -U user -d fastapi_db -v ON_ERROR_STOP=1
+
+## Thêm khóa ngoại (add foreign key)
+Get-Content .\sql\add_foreignkey.sql | docker exec -i is207-be-db-1 psql -U user -d fastapi_db -v ON_ERROR_STOP=1

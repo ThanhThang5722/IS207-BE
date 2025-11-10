@@ -13,8 +13,8 @@ INSERT INTO customer (account_id, fullname, email, phone_number, id_number) VALU
 INSERT INTO customer (account_id, fullname, email, phone_number, id_number) VALUES (2, 'Tran Thi B', 'b@example.com', '0900000002', '987654321') ON CONFLICT DO NOTHING;
 
 -- Partners
-INSERT INTO partner (account_id, address, banking_number, bank, balance) VALUES (1, '123 Main St', '111122223333', 'Vietcombank', 1000000) ON CONFLICT DO NOTHING;
-
+INSERT INTO partner (account_id, name, phone_number, address, banking_number, bank, balance) VALUES (1, 'Vingroup', '0908000001', '123 Main St', '111122223333', 'Vietcombank', 1000000) ON CONFLICT DO NOTHING;
+INSERT INTO partner (account_id, name, phone_number, address, banking_number, bank, balance) VALUES (2, 'Du Lich Viet', '0908000002', '456 Side St', '444455556666', 'Techcombank', 2000000) ON CONFLICT DO NOTHING;
 -- Citys
 INSERT INTO city (name) VALUES ('Hanoi') ON CONFLICT DO NOTHING;
 INSERT INTO city (name) VALUES ('Da Nang') ON CONFLICT DO NOTHING;
@@ -49,8 +49,6 @@ INSERT INTO resort_images (resort_id, url) VALUES (7, 'http://images.com/resortA
 INSERT INTO resort_images (resort_id, url) VALUES (7, 'http://images.com/resortA2.jpg') ON CONFLICT DO NOTHING;
 INSERT INTO resort_images (resort_id, url) VALUES (8, 'http://images.com/resortA1.jpg') ON CONFLICT DO NOTHING;
 INSERT INTO resort_images (resort_id, url) VALUES (8, 'http://images.com/resortA2.jpg') ON CONFLICT DO NOTHING;
-INSERT INTO resort_images (resort_id, url) VALUES (9, 'http://images.com/resortA1.jpg') ON CONFLICT DO NOTHING;
-INSERT INTO resort_images (resort_id, url) VALUES (9, 'http://images.com/resortA2.jpg') ON CONFLICT DO NOTHING;
 -- Room types
 INSERT INTO room_type (resort_id, name, area, quantity_standard, quality_standard, bed_amount, people_amount, price) VALUES (1, 'Deluxe', 35.0, 'High', 'Luxury', 2, 4, 1500000) ON CONFLICT DO NOTHING;
 INSERT INTO room_type (resort_id, name, area, quantity_standard, quality_standard, bed_amount, people_amount, price) VALUES (1, 'Standard', 25.0, 'Medium', 'Comfort', 1, 2, 1000000) ON CONFLICT DO NOTHING;
@@ -97,12 +95,12 @@ INSERT INTO service (name, resort_id) VALUES ('Gym', 2) ON CONFLICT DO NOTHING;
 INSERT INTO service (name, resort_id) VALUES ('Breakfast', 2) ON CONFLICT DO NOTHING;
 -- Booking
 INSERT INTO booking (customer_id, status, cost) VALUES (1, 'confirmed', 2000000) ON CONFLICT DO NOTHING;
-
+INSERT INTO booking (customer_id, status, cost) VALUES (1, 'pending', 2000000) ON CONFLICT DO NOTHING;
 -- Offers
 INSERT INTO offer (room_type_id, cost) VALUES (1, 2000000) ON CONFLICT DO NOTHING;
 
 -- Booking detail
-INSERT INTO booking_detail (booking_id, offer_id, number_of_rooms, cost, started_at, finished_at, tinh_trang) VALUES (1, 1, 1, 2000000, NOW(), NOW() + INTERVAL '2 days', 'paid') ON CONFLICT DO NOTHING;
+INSERT INTO booking_detail (booking_id, offer_id, number_of_rooms, cost, started_at, finished_at, status) VALUES (1, 1, 1, 2000000, NOW(), NOW() + INTERVAL '2 days', 'paid') ON CONFLICT DO NOTHING;
 
 -- Invoice
 INSERT INTO invoice (customer_id, partner_id, booking_detail_id, cost, finished_time, payment_method) VALUES (1, 1, 1, 2000000, NOW() + INTERVAL '2 days', 'credit_card') ON CONFLICT DO NOTHING;
@@ -118,7 +116,7 @@ INSERT INTO account_assign_role (account_id, role_id) VALUES (1, 2) ON CONFLICT 
 -- Account_token - Nếu dùng JWT thì không cần lưu token
 
 -- With-draw
-INSERT INTO withdraw (partner_id, amount, status, requested_at) VALUES (1, 500000, 'pending', NOW()) ON CONFLICT DO NOTHING;
+INSERT INTO withdraw (partner_id, transaction_amount, status, created_at) VALUES (1, 500000, 'pending', NOW()) ON CONFLICT DO NOTHING;
 
 -- Service-offered
 INSERT INTO service_offered (id, offer_id) VALUES (1, 1) ON CONFLICT DO NOTHING;
