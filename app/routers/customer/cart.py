@@ -15,26 +15,26 @@ from app.services import crud_booking as crud
 router = APIRouter(prefix="/api/v1", tags=["Resorts"])
 
 @router.post("/booking", response_model=BookingDetailCreate, status_code=status.HTTP_201_CREATED)
-async def add_booking(booking_detail: BookingDetailCreate, db: AsyncSession = Depends(get_db)):
+def add_booking(booking_detail: BookingDetailCreate, db: AsyncSession = Depends(get_db)):
     # Lấy giỏ hàng chưa thanh toán của customer
-    cart = await crud.get_latest_unpaid_cart(db=db, customer_id=booking_detail.customer_id)
+    cart = crud.get_latest_unpaid_cart(db=db, customer_id=booking_detail.customer_id)
     
     if not cart:
         raise HTTPException(status_code=404, detail="Không có giỏ hàng chưa thanh toán.")
 
     # Thêm BookingDetail vào giỏ và tạo Hóa Đơn
-    await crud.add_booking_detail(db=db, booking_id=cart.id, booking_detail=booking_detail)
+    crud.add_booking_detail(db=db, booking_id=cart.id, booking_detail=booking_detail)
 
     return booking_detail
 
 @router.put("/booking-detail/{booking_detail_id}")
-async def update_booking_detail(
+def update_booking_detail(
     booking_detail_id: int, 
     booking_detail_update: BookingDetailUpdate, 
     db: AsyncSession = Depends(get_db)
 ):
     # Tìm booking_detail theo ID
-    result = await db.execute(select(BookingDetail).filter(BookingDetail.id == booking_detail_id))
+    result = db.execute(select(BookingDetail).filter(BookingDetail.id == booking_detail_id))
     booking_detail = result.scalar_one_or_none()
     
     # Kiểm tra xem booking_detail có tồn tại không
@@ -49,18 +49,18 @@ async def update_booking_detail(
     
     # Commit và refresh lại booking_detail
     db.add(booking_detail)
-    await db.commit()
-    await db.refresh(booking_detail)
+    db.commit()
+    db.refresh(booking_detail)
 
     return {"message": "Booking Detail updated successfully", "booking_detail": booking_detail}
 
 @router.post("/payment")
-async def process_payment(
+def process_payment(
     payment_request: PaymentRequest, 
     db: AsyncSession = Depends(get_db)
 ):
     # Tìm BookingDetail theo booking_detail_id trong một ngữ cảnh bất đồng bộ đúng
-    result = await db.execute(select(BookingDetail).filter(BookingDetail.id == payment_request.booking_detail_id).options(selectinload(BookingDetail.booking)))
+    result = db.execute(select(BookingDetail).filter(BookingDetail.id == payment_request.booking_detail_id).options(selectinload(BookingDetail.booking)))
     booking_detail = result.scalar_one_or_none()
 
     if not booking_detail:
@@ -73,8 +73,8 @@ async def process_payment(
     # Cập nhật trạng thái của booking_detail thành "PAID"
     booking_detail.status = "PAID"
     db.add(booking_detail)
-    await db.commit()  # Chắc chắn là await đúng
-    await db.refresh(booking_detail)  # Đảm bảo refresh sau khi commit
+    db.commit()  # Chắc chắn là await đúng
+    db.refresh(booking_detail)  # Đảm bảo refresh sau khi commit
 
     # Tạo hóa đơn
     invoice = Invoice(
@@ -85,8 +85,8 @@ async def process_payment(
         payment_method=payment_request.payment_method,
     )
     db.add(invoice)
-    await db.commit()  # Chắc chắn là await đúng
-    await db.refresh(invoice)  # Đảm bảo refresh sau khi commit
+    db.commit()  # Chắc chắn là await đúng
+    db.refresh(invoice)  # Đảm bảo refresh sau khi commit
 
     # Trả về hóa đơn đã tạo
     return invoice

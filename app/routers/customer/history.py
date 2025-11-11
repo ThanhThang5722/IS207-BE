@@ -8,13 +8,13 @@ from app.database import get_db
 router = APIRouter(prefix="/api/v1/customer", tags=["Resorts"])
 
 @router.get("/{id}/histories")
-async def get_booking_histories(
+def get_booking_histories(
     id: int,  # customer_id
     db: AsyncSession = Depends(get_db)
 ):
     #print('here')
     # Truy vấn BookingDetails của customer_id có liên kết với Invoice
-    result = await db.execute(
+    result = db.execute(
         select(BookingDetail)
         .join(Invoice, (Invoice.booking_detail_id == BookingDetail.id) & (Invoice.customer_id == id))
     )
