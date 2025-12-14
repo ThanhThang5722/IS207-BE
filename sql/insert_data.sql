@@ -1,8 +1,9 @@
 -- Sample data for development/demo
 
 -- Roles
-INSERT INTO role (title) VALUES ('admin') ON CONFLICT DO NOTHING;
-INSERT INTO role (title) VALUES ('user') ON CONFLICT DO NOTHING;
+INSERT INTO role (title) VALUES ('CUSTOMER') ON CONFLICT DO NOTHING;
+INSERT INTO role (title) VALUES ('PARTNER') ON CONFLICT DO NOTHING;
+INSERT INTO role (title) VALUES ('ADMIN') ON CONFLICT DO NOTHING;
 
 -- Accounts
 INSERT INTO account (username, password, status) VALUES ('admin', 'adminpass', 'ACTIVE') ON CONFLICT DO NOTHING;

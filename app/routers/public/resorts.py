@@ -64,13 +64,13 @@ def get_resort_detail(
     }
 
 @router.get("/resorts/{id}/feedbacks", response_model=list[FeedbackResponse])
-async def get_feedbacks(id: int, db: Session = Depends(get_db)):
+def get_feedbacks(id: int, db: Session = Depends(get_db)):
     stmt = (
         select(Feedback)
         .where(Feedback.resort_id == id)
         .order_by(Feedback.created_at.desc())
     )
-    result = await db.execute(stmt)
+    result = db.execute(stmt)
     feedbacks = result.scalars().all()
     if not feedbacks:
         # Không ném lỗi, trả rỗng vẫn OK — tuỳ bạn
