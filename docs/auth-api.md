@@ -4,7 +4,7 @@
 
 Hệ thống xác thực sử dụng JWT (JSON Web Token) để quản lý phiên đăng nhập. Token được lưu trong database và có thể bị revoke khi đăng xuất.
 
-**Base URL:** `/auth`
+**Base URL:** `api/v1/auth`
 
 ---
 

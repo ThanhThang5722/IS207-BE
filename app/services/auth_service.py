@@ -58,6 +58,8 @@ def get_account_by_id(db: Session, account_id: int) -> Optional[Account]:
 
 def register_account(db: Session, username: str, password: str, role_title: str = "CUSTOMER") -> Account:
     """Đăng ký tài khoản mới"""
+    from app.models.customer import Customer
+    
     # Hash password
     hashed_password = hash_password(password)
     
@@ -79,6 +81,14 @@ def register_account(db: Session, username: str, password: str, role_title: str 
             role_id=role.id
         )
         db.add(account_role)
+    
+    # Tạo Customer profile nếu role là CUSTOMER
+    if role_title == "CUSTOMER":
+        new_customer = Customer(
+            account_id=new_account.account_id,
+            is_deleted=False
+        )
+        db.add(new_customer)
     
     db.commit()
     db.refresh(new_account)
