@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers.customer import cart, history
+from app.routers.customer import cart, history, zalopay
 from app.routers.public import resorts, search, roomtypes, auth
 from app.routers.partner import partner
 from app.routers.admin import withdraw, partner_approval
@@ -17,6 +17,7 @@ app.include_router(roomtypes.router)
 # Customer routes
 app.include_router(cart.router)
 app.include_router(history.router)
+app.include_router(zalopay.router)
 
 # Partner routes
 app.include_router(partner.router)

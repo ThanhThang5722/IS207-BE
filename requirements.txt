@@ -21,6 +21,9 @@ bcrypt==4.0.1              # Low-level password hashing (ensure compatibility wi
 # --- Caching & Background Tasks ---
 redis==5.0.1               # Redis client library
 
+# --- HTTP Client ---
+requests==2.31.0           # HTTP library for API calls
+
 # --- Optional Tools ---
 # If you use testing, linting, or async DB features, add:
 # pytest
