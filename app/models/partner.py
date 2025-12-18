@@ -17,5 +17,5 @@ class Partner(Base):
 
     # Relationship with Account
     resorts = relationship("Resort", back_populates="partner")
-    account = relationship('Account')
+    account = relationship('Account', back_populates='partner')
     invoices = relationship("Invoice", back_populates="partner")

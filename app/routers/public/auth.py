@@ -99,7 +99,7 @@ def logout(
     return LogoutResponse(message="Logout successful")
 
 
-@router.get("/me", response_model=AccountResponse)
+@router.get("/me")
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
@@ -115,13 +115,25 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"}
         )
     
-    return AccountResponse(
-        account_id=account.account_id,
-        username=account.username,
-        status=account.status,
-        created_at=account.created_at,
-        roles=get_account_roles(account)
-    )
+    roles = get_account_roles(account)
+    
+    response = {
+        "account_id": account.account_id,
+        "username": account.username,
+        "status": account.status,
+        "created_at": account.created_at,
+        "roles": roles
+    }
+    
+    # Thêm customer_id nếu là CUSTOMER
+    if "CUSTOMER" in roles and account.customer:
+        response["customer_id"] = account.customer.id
+    
+    # Thêm partner_id nếu là PARTNER
+    if "PARTNER" in roles and account.partner:
+        response["partner_id"] = account.partner.id
+    
+    return response
 
 
 # Dependency để sử dụng trong các router khác
