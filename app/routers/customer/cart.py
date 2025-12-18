@@ -250,6 +250,56 @@ def delete_booking_detail(
 
     return {"message": "Item đã được xóa khỏi giỏ hàng"}
 
+@router.post("/booking-detail/{booking_detail_id}/cancel")
+def cancel_booking_detail(
+    booking_detail_id: int,
+    current_account: Account = Depends(get_current_account),
+    db: Session = Depends(get_db)
+):
+    """
+    Hủy một booking detail đã thanh toán
+    """
+    # Kiểm tra customer
+    if not current_account.customer:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tài khoản chưa có thông tin khách hàng"
+        )
+    customer_id = current_account.customer.id
+
+    # Tìm booking_detail kèm booking
+    result = db.execute(
+        select(BookingDetail)
+        .filter(BookingDetail.id == booking_detail_id)
+        .options(selectinload(BookingDetail.booking))
+    )
+    booking_detail = result.scalar_one_or_none()
+
+    if not booking_detail:
+        raise HTTPException(status_code=404, detail="Booking Detail not found")
+
+    # Kiểm tra ownership
+    if booking_detail.booking.customer_id != customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền hủy booking này"
+        )
+
+    # Chỉ cho phép hủy booking đã thanh toán (PAID)
+    if booking_detail.status != "PAID":
+        raise HTTPException(
+            status_code=400,
+            detail="Chỉ có thể hủy booking đã thanh toán"
+        )
+
+    # Cập nhật trạng thái thành CANCELLED
+    booking_detail.status = "CANCELLED"
+    db.commit()
+    db.refresh(booking_detail)
+
+    return {"message": "Booking đã được hủy thành công", "booking_detail_id": booking_detail_id}
+
+
 @router.post("/payment")
 def process_payment(
     payment_request: PaymentRequest, 

@@ -13,10 +13,12 @@ def get_booking_histories(
     db: AsyncSession = Depends(get_db)
 ):
     #print('here')
-    # Truy vấn BookingDetails của customer_id có liên kết với Invoice
+    # Truy vấn BookingDetails của customer_id có liên kết với Invoice hoặc đã hủy
     result = db.execute(
         select(BookingDetail)
         .join(Invoice, (Invoice.booking_detail_id == BookingDetail.id) & (Invoice.customer_id == id))
+        .filter(BookingDetail.status.in_(["PAID", "CANCELLED"]))
+        .distinct()
     )
 
     # Lấy danh sách các booking details đã có hóa đơn
