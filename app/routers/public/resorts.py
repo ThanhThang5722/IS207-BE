@@ -67,7 +67,7 @@ def get_resort_detail(
         "room_types": room_types
     }
 
-@router.get("/resorts/{id}/feedbacks", response_model=list[FeedbackResponse])
+@router.get("/resorts/{id}/feedbacks")
 def get_feedbacks(id: int, db: Session = Depends(get_db)):
     stmt = (
         select(Feedback)
@@ -77,9 +77,26 @@ def get_feedbacks(id: int, db: Session = Depends(get_db)):
     result = db.execute(stmt)
     feedbacks = result.scalars().all()
     if not feedbacks:
-        # Không ném lỗi, trả rỗng vẫn OK — tuỳ bạn
         return []
-    return feedbacks
+    
+    # Build response với username
+    response = []
+    for fb in feedbacks:
+        username = None
+        if fb.customer and fb.customer.account:
+            username = fb.customer.account.username
+        
+        response.append({
+            "id": fb.id,
+            "resort_id": fb.resort_id,
+            "customer_id": fb.customer_id,
+            "rating": fb.rating,
+            "comment": fb.comment,
+            "created_at": fb.created_at,
+            "username": username
+        })
+    
+    return response
 
 @router.post("/resorts/{id}/feedbacks", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
 def add_feedback(
