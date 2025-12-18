@@ -1,14 +1,18 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, exists
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.account import Account
 from app.models.feedback import Feedback
 from app.models.resort import Resort
 from app.models.resort_images import ResortImage
 from app.models.room_type import RoomType
+from app.models.offer import Offer
+from app.models.booking_detail import BookingDetail
 from app.schemas.feedback import FeedbackCreate, FeedbackResponse
+from app.routers.public.auth import get_current_account
 
 router = APIRouter(prefix="/api/v1", tags=["Resorts"])
 
@@ -81,12 +85,40 @@ def get_feedbacks(id: int, db: Session = Depends(get_db)):
 def add_feedback(
     id: int,
     feedback: FeedbackCreate,
+    current_account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db)
 ):
-    print('here')
+    # Lấy customer_id từ token
+    if not current_account.customer:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tài khoản chưa có thông tin khách hàng"
+        )
+    customer_id = current_account.customer.id
+
+    # Kiểm tra customer đã từng đặt phòng ở resort này chưa
+    has_booking = db.execute(
+        select(BookingDetail.id)
+        .join(Offer, BookingDetail.offer_id == Offer.id)
+        .join(RoomType, Offer.room_type_id == RoomType.id)
+        .where(
+            RoomType.resort_id == id,
+            BookingDetail.status == "PAID"
+        )
+        .join(BookingDetail.booking)
+        .where(BookingDetail.booking.has(customer_id=customer_id))
+        .limit(1)
+    ).scalar_one_or_none()
+
+    if not has_booking:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn chỉ có thể đánh giá resort mà bạn đã từng đặt phòng"
+        )
+
     new_feedback = Feedback(
         resort_id=id,
-        customer_id=feedback.customer_id,
+        customer_id=customer_id,
         rating=feedback.rating,
         comment=feedback.comment
     )
