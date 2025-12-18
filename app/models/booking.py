@@ -11,6 +11,7 @@ class Booking(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
     status = Column(String(255))
     cost = Column(Numeric(12, 2))
+    zp_trans_id = Column(String(255), nullable=True)  # ZaloPay transaction ID
 
     # Relationship with Customer
     customer = relationship("Customer", back_populates="bookings")

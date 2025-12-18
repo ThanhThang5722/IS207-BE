@@ -17,6 +17,9 @@ class Account(Base):
     # Relationship with Customer
     customer = relationship('Customer', back_populates='account', uselist=False)
 
+    # Relationship with Partner
+    partner = relationship('Partner', back_populates='account', uselist=False)
+
     # Relationship with Account Token
     tokens = relationship('AccountToken', back_populates='account')
 

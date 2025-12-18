@@ -15,7 +15,7 @@ from app.models.service import Service
 router = APIRouter(prefix="/api/v1", tags=["Search"])
 
 @router.get("/search")
-async def search_resorts(
+def search_resorts(
     checkin: Optional[str] = Query(None),      # Không bắt buộc
     checkout: Optional[str] = Query(None),     # Không bắt buộc
     number: Optional[int] = Query(None),       # Không bắt buộc
@@ -74,14 +74,14 @@ async def search_resorts(
         .group_by(Resort.id)
     )
 
-    result = await db.execute(stmt)
+    result = db.execute(stmt)
     resorts = result.all()
 
     # 3️⃣ Gắn thêm images và services
     output = []
     for r in resorts:
         # Lấy 4 ảnh đầu
-        img_result = await db.execute(
+        img_result = db.execute(
             select(ResortImage.url)
             .where(ResortImage.resort_id == r.id)
             .limit(4)
@@ -89,7 +89,7 @@ async def search_resorts(
         images = [row[0] for row in img_result.all()]
 
         # Lấy danh sách dịch vụ
-        sv_result = await db.execute(
+        sv_result = db.execute(
             select(Service.name).where(Service.resort_id == r.id)
         )
         services = [row[0] for row in sv_result.all()]

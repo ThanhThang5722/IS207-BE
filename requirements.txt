@@ -3,7 +3,9 @@ fastapi==0.104.1          # Modern, async Python web framework
 uvicorn==0.24.0           # ASGI server for FastAPI
 
 # --- Database & ORM ---
-sqlalchemy==2.0.23         # SQL toolkit and ORM
+sqlalchemy==2.0.23     
+asyncpg
+greenlet>=3.0.0    # SQL toolkit and ORM
 psycopg2-binary==2.9.9     # PostgreSQL database driver
 alembic==1.12.1            # Database migrations for SQLAlchemy
 
@@ -18,6 +20,9 @@ bcrypt==4.0.1              # Low-level password hashing (ensure compatibility wi
 
 # --- Caching & Background Tasks ---
 redis==5.0.1               # Redis client library
+
+# --- HTTP Client ---
+requests==2.31.0           # HTTP library for API calls
 
 # --- Optional Tools ---
 # If you use testing, linting, or async DB features, add:

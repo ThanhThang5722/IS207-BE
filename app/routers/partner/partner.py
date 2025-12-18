@@ -24,11 +24,11 @@ from app.services import crud_booking as crud
 router = APIRouter(prefix="/api/v1", tags=["Partners"])
 
 @router.get("/resorts/{id}/partner")
-async def get_partner_of_resort(
+def get_partner_of_resort(
     id: int,
     db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(
+    result = db.execute(
         select(Partner)
         .join(Resort, Resort.partner_id == Partner.id)
         .where(Resort.id == id)
@@ -48,7 +48,7 @@ async def get_partner_of_resort(
     }
 
 @router.get("/partner/{partner_id}/bookings/schedule")
-async def get_partner_booking_schedule(
+def get_partner_booking_schedule(
     partner_id: int,
     start: datetime | None = Query(None, description="Ngày bắt đầu hiển thị lịch (YYYY-MM-DD)"),
     end: datetime | None = Query(None, description="Ngày kết thúc hiển thị lịch (YYYY-MM-DD)"),
@@ -91,7 +91,7 @@ async def get_partner_booking_schedule(
     if resort_id:
         query = query.where(Resort.id == resort_id)
 
-    result = await db.execute(query)
+    result = db.execute(query)
     slots = result.all()
 
     return [
@@ -108,16 +108,16 @@ async def get_partner_booking_schedule(
 
 
 @router.get("/partner/{partner_id}/statistics")
-async def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get_db)):
+def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get_db)):
     # 1️⃣ Lấy Partner
-    partner_result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    partner_result = db.execute(select(Partner).where(Partner.id == partner_id))
     partner = partner_result.scalar_one_or_none()
     if not partner:
         raise HTTPException(status_code=404, detail="Partner not found")
 
     # 2️⃣ Số lượt đặt mới trong ngày
     today = date.today()
-    result_new = await db.execute(
+    result_new = db.execute(
         select(func.count(Invoice.id)).where(
             Invoice.partner_id == partner_id,
             func.date(Invoice.finished_time) == today
@@ -127,7 +127,7 @@ async def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get
 
     # 3️⃣ Doanh thu tháng này
     now = datetime.utcnow()
-    result_month = await db.execute(
+    result_month = db.execute(
         select(func.sum(Invoice.cost)).where(
             Invoice.partner_id == partner_id,
             extract('month', Invoice.finished_time) == now.month,
@@ -137,7 +137,7 @@ async def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get
     monthly_revenue = result_month.scalar() or 0
 
     # 4️⃣ Tổng số lượt đặt
-    result_total = await db.execute(
+    result_total = db.execute(
         select(func.count(Invoice.id)).where(Invoice.partner_id == partner_id)
     )
     total_bookings = result_total.scalar() or 0
@@ -147,7 +147,7 @@ async def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get
 
     # 6️⃣ Biến động số dư
     # Doanh thu (Invoice)
-    revenue_result = await db.execute(
+    revenue_result = db.execute(
         select(
             Invoice.id.label("invoice_id"),
             Invoice.booking_detail_id,
@@ -168,7 +168,7 @@ async def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get
     ]
 
     # Rút tiền (Withdrawals)
-    withdrawal_result = await db.execute(
+    withdrawal_result = db.execute(
         select(
             Withdraw.id,
             Withdraw.transaction_amount.label("amount"),
@@ -198,13 +198,13 @@ async def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get
     }
 
 @router.post("/partner/{partner_id}/withdraw")
-async def create_withdraw_request(
+def create_withdraw_request(
     partner_id: int,
     amount: float = Query(..., gt=0, description="Số tiền muốn rút"),
     db: AsyncSession = Depends(get_db)
 ):
     # Lấy thông tin partner
-    partner_result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    partner_result = db.execute(select(Partner).where(Partner.id == partner_id))
     partner = partner_result.scalar_one_or_none()
 
     if not partner:
@@ -228,8 +228,8 @@ async def create_withdraw_request(
 
     db.add(withdraw_request)
     db.add(partner)
-    await db.commit()
-    await db.refresh(withdraw_request)
+    db.commit()
+    db.refresh(withdraw_request)
 
     return {
         "message": "Yêu cầu rút tiền đã được tạo thành công",

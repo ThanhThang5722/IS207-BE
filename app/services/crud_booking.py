@@ -1,28 +1,71 @@
 from sqlalchemy.orm import Session
-from app.models import Booking, BookingDetail, Invoice, Customer
-from app.schemas.booking import BookingDetailCreate, BookingCreate
-from datetime import datetime
-from sqlalchemy.future import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from decimal import Decimal
+from fastapi import HTTPException
+
+from app.models.booking import Booking
+from app.models.booking_detail import BookingDetail
+from app.models.offer import Offer
+from app.schemas.booking import BookingDetailCreate
 
 
-
-# Lấy giỏ hàng mới nhất chưa thanh toán
-async def get_latest_unpaid_cart(db: AsyncSession, customer_id: int):
-    # Use select() for async queries
-    result = await db.execute(
-        select(Booking).filter(Booking.customer_id == customer_id, Booking.status == "pending").order_by(Booking.created_at.desc())
+def get_latest_unpaid_cart(db: Session, customer_id: int):
+    """Lấy giỏ hàng mới nhất chưa thanh toán"""
+    result = db.execute(
+        select(Booking)
+        .filter(Booking.customer_id == customer_id, Booking.status == "pending")
+        .order_by(Booking.created_at.desc())
     )
-    # Retrieve the first result
     return result.scalars().first()
 
 
-# Thêm BookingDetail vào Booking và tạo Hóa Đơn
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from datetime import datetime
+def create_cart(db: Session, customer_id: int) -> Booking:
+    """Tạo giỏ hàng mới (Booking với status pending)"""
+    new_cart = Booking(
+        customer_id=customer_id,
+        status="pending",
+        cost=Decimal("0")
+    )
+    db.add(new_cart)
+    db.commit()
+    db.refresh(new_cart)
+    return new_cart
 
-async def add_booking_detail(db: AsyncSession, booking_id: int, booking_detail: BookingDetailCreate):
+
+def get_or_create_cart(db: Session, customer_id: int) -> Booking:
+    """Lấy giỏ hàng hiện có hoặc tạo mới nếu chưa có"""
+    cart = get_latest_unpaid_cart(db, customer_id)
+    if not cart:
+        cart = create_cart(db, customer_id)
+    return cart
+
+
+def add_booking_detail(db: Session, booking_id: int, booking_detail: BookingDetailCreate):
+    """Thêm BookingDetail vào Booking"""
+    from app.models.room_type import RoomType
+    from sqlalchemy.orm import selectinload
+    
+    # Lấy Offer kèm RoomType để lấy giá
+    result = db.execute(
+        select(Offer)
+        .filter(Offer.id == booking_detail.offer_id)
+        .options(selectinload(Offer.room_type))
+    )
+    offer = result.scalar_one_or_none()
+    
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer không tồn tại")
+    
+    # Ưu tiên lấy giá từ Offer, nếu không có thì lấy từ RoomType
+    if offer.cost:
+        offer_price = offer.cost
+    elif offer.room_type and offer.room_type.price:
+        offer_price = offer.room_type.price
+    else:
+        offer_price = Decimal("0")
+    
+    item_cost = booking_detail.number_of_rooms * offer_price
+
     # Tạo mới một BookingDetail
     new_booking_detail = BookingDetail(
         booking_id=booking_id,
@@ -31,26 +74,20 @@ async def add_booking_detail(db: AsyncSession, booking_id: int, booking_detail: 
         started_at=booking_detail.started_at,
         finished_at=booking_detail.finished_at,
         status=booking_detail.status,
-        cost=booking_detail.number_of_rooms * 100  # giả sử giá mỗi phòng là 100
+        cost=item_cost
     )
-
-    # Add BookingDetail to session
     db.add(new_booking_detail)
-    await db.flush()  # Use `flush()` to persist the object and generate its ID, but without committing yet
+    db.flush()
 
-    # Cập nhật Booking (thêm cost của booking_detail vào tổng cost của Booking)
-    result = await db.execute(
-        select(Booking).filter(Booking.id == booking_id)
-    )
+    # Cập nhật tổng cost của Booking
+    result = db.execute(select(Booking).filter(Booking.id == booking_id))
     booking = result.scalar_one_or_none()
     
     if booking:
+        if booking.cost is None:
+            booking.cost = Decimal("0")
         booking.cost += new_booking_detail.cost
-        await db.flush()  # Flush changes to the session
 
-    # Commit the changes to save everything
-    await db.commit()
-
-    # Refresh and return the new booking detail
-    await db.refresh(new_booking_detail)
+    db.commit()
+    db.refresh(new_booking_detail)
     return new_booking_detail

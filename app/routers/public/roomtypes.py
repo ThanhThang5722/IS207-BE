@@ -14,7 +14,7 @@ class RoomTypeRequest(BaseModel):
 
 
 @router.post("/roomtypes/details")
-async def get_roomtype_details(
+def get_roomtype_details(
     payload: RoomTypeRequest,
     db: AsyncSession = Depends(get_db)
 ):
@@ -30,7 +30,7 @@ async def get_roomtype_details(
         RoomType.price
     ).where(RoomType.id.in_(payload.room_type_ids))
 
-    result = await db.execute(stmt)
+    result = db.execute(stmt)
     room_types = result.all()
 
     # Nếu không có kết quả
@@ -41,14 +41,14 @@ async def get_roomtype_details(
 
     for rt in room_types:
         # 2️⃣ Lấy Offer của RoomType
-        offers_result = await db.execute(
+        offers_result = db.execute(
             select(Offer.id, Offer.cost)
             .where(Offer.room_type_id == rt.id)
         )
         offers = [{"id": o.id, "cost": float(o.cost)} for o in offers_result.all()]
 
         # 3️⃣ Lấy hình (không bị soft delete)
-        img_result = await db.execute(
+        img_result = db.execute(
             select(RoomImage.url)
             .where(RoomImage.room_type_id == rt.id, RoomImage.is_deleted == False)
         )

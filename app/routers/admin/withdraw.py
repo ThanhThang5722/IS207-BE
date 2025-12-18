@@ -9,7 +9,7 @@ from app.database import get_db
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin Withdraw Management"])
 
 @router.get("/withdraws")
-async def get_withdraw_requests(
+def get_withdraw_requests(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, le=100),
@@ -18,6 +18,7 @@ async def get_withdraw_requests(
     start_date: date | None = Query(None),
     end_date: date | None = Query(None)
 ):
+    print('here')
     # Base query
     query = select(Withdraw, Partner.name).join(Partner, Withdraw.partner_id == Partner.id)
 
@@ -38,11 +39,11 @@ async def get_withdraw_requests(
     count_query = select(func.count()).select_from(Withdraw)
     if filters:
         count_query = count_query.where(and_(*filters))
-    total_result = await db.execute(count_query)
+    total_result = db.execute(count_query)
     total = total_result.scalar()
 
     # Lấy dữ liệu trang hiện tại
-    result = await db.execute(
+    result = db.execute(
         query.order_by(Withdraw.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
@@ -72,12 +73,12 @@ async def get_withdraw_requests(
 
 
 @router.post("/withdraws")
-async def approve_withdraw_request(
+def approve_withdraw_request(
     id: int = Query(..., description="ID của yêu cầu rút tiền"),
     db: AsyncSession = Depends(get_db)
 ):
     # 1️⃣ Tìm yêu cầu rút tiền
-    result = await db.execute(select(Withdraw).where(Withdraw.id == id))
+    result = db.execute(select(Withdraw).where(Withdraw.id == id))
     withdraw = result.scalar_one_or_none()
 
     if not withdraw:
@@ -95,8 +96,8 @@ async def approve_withdraw_request(
     # Có thể thêm bảng transaction_history nếu muốn lưu lại hoạt động này
 
     db.add(withdraw)
-    await db.commit()
-    await db.refresh(withdraw)
+    db.commit()
+    db.refresh(withdraw)
 
     return {
         "message": "Withdraw request approved successfully",

@@ -179,7 +179,8 @@ CREATE TABLE IF NOT EXISTS booking (
   customer_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status VARCHAR(255),
-  cost NUMERIC(12,2)
+  cost NUMERIC(12,2),
+  zp_trans_id VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS booking_detail (
