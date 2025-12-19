@@ -1,5 +1,6 @@
 from decimal import Decimal
 from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import extract, func, select
 from sqlalchemy.orm import selectinload
@@ -20,8 +21,35 @@ from app.schemas.booking import BookingDetailCreate
 from app.database import get_db
 from app.schemas.payment import PaymentRequest
 from app.services import crud_booking as crud
+from app.services.auth_service import validate_token
 
 router = APIRouter(prefix="/api/v1", tags=["Partners"])
+security = HTTPBearer()
+
+
+def get_current_partner(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> Partner:
+    """Dependency để lấy partner từ token đăng nhập"""
+    token = credentials.credentials
+    account = validate_token(db, token)
+    
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token không hợp lệ hoặc đã hết hạn",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    # Kiểm tra account có phải là partner không
+    if not account.partner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tài khoản không phải là đối tác"
+        )
+    
+    return account.partner
 
 @router.get("/resorts/{id}/partner")
 def get_partner_of_resort(
@@ -47,18 +75,19 @@ def get_partner_of_resort(
         "phone_number": getattr(partner, "phone_number", None)
     }
 
-@router.get("/partner/{partner_id}/bookings/schedule")
+@router.get("/partner/bookings/schedule")
 def get_partner_booking_schedule(
-    partner_id: int,
     start: datetime | None = Query(None, description="Ngày bắt đầu hiển thị lịch (YYYY-MM-DD)"),
     end: datetime | None = Query(None, description="Ngày kết thúc hiển thị lịch (YYYY-MM-DD)"),
     resort_id: int | None = Query(None, description="Lọc theo resort cụ thể"),
+    partner: Partner = Depends(get_current_partner),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Lấy danh sách lịch đặt phòng (BookingTimeSlot) của partner trong khoảng thời gian cụ thể.
     Nếu không truyền start/end → mặc định là từ Thứ 2 đến Chủ Nhật của tuần hiện tại.
     """
+    partner_id = partner.id
 
     # 🕓 Nếu không truyền start/end, tự động tính khoảng tuần hiện tại
     if not start or not end:
@@ -107,13 +136,12 @@ def get_partner_booking_schedule(
     ]
 
 
-@router.get("/partner/{partner_id}/statistics")
-def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get_db)):
-    # 1️⃣ Lấy Partner
-    partner_result = db.execute(select(Partner).where(Partner.id == partner_id))
-    partner = partner_result.scalar_one_or_none()
-    if not partner:
-        raise HTTPException(status_code=404, detail="Partner not found")
+@router.get("/partner/statistics")
+def get_partner_statistics(
+    partner: Partner = Depends(get_current_partner),
+    db: AsyncSession = Depends(get_db)
+):
+    partner_id = partner.id
 
     # 2️⃣ Số lượt đặt mới trong ngày
     today = date.today()
@@ -197,19 +225,14 @@ def get_partner_statistics(partner_id: int, db: AsyncSession = Depends(get_db)):
         }
     }
 
-@router.post("/partner/{partner_id}/withdraw")
+@router.post("/partner/withdraw")
 def create_withdraw_request(
-    partner_id: int,
     amount: float = Query(..., gt=0, description="Số tiền muốn rút"),
+    partner: Partner = Depends(get_current_partner),
     db: AsyncSession = Depends(get_db)
 ):
-    # Lấy thông tin partner
-    partner_result = db.execute(select(Partner).where(Partner.id == partner_id))
-    partner = partner_result.scalar_one_or_none()
-
-    if not partner:
-        raise HTTPException(status_code=404, detail="Partner not found")
-
+    partner_id = partner.id
+    
     # Kiểm tra số dư
     balance = partner.balance or 0
     if Decimal(balance) < Decimal(amount):
