@@ -9,11 +9,13 @@ from .models.base import Base  # chỉ import metadata
 load_dotenv()
 
 # URLs
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/fastapi_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/fastapi_db")
+# Convert asyncpg to psycopg2 for sync engine
+DATABASE_URL_SYNC = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # PostgreSQL sync engine (create_engine with psycopg2)
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL_SYNC, echo=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 # Redis client
