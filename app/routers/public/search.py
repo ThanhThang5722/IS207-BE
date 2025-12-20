@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, not_, exists
+from sqlalchemy import select, func, and_, or_
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -19,7 +19,7 @@ async def search_resorts(
     checkin: Optional[str] = Query(None),
     checkout: Optional[str] = Query(None),
     number: Optional[int] = Query(None),
-    name: Optional[str] = Query(None, description="Search resort by name"),
+    name: Optional[str] = Query(None, description="Search resort by name or address"),
     db: AsyncSession = Depends(get_db)
 ):
     print('here')
@@ -74,9 +74,14 @@ async def search_resorts(
         .where(~Room.id.in_(subq) & (RoomType.people_amount >= number))
     )
 
-    # 3️⃣ Filter theo name nếu có
+    # 3️⃣ Filter theo name HOẶC address nếu có
     if name:
-        stmt = stmt.where(Resort.name.ilike(f"%{name}%"))
+        stmt = stmt.where(
+            or_(
+                Resort.name.ilike(f"%{name}%"),
+                Resort.address.ilike(f"%{name}%")
+            )
+        )
 
     stmt = stmt.group_by(Resort.id)
 
