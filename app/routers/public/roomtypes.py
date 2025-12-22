@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.database import get_db
+from app.db_async import get_db
 from app.models.room_type import RoomType
 from app.models.offer import Offer
 from app.models.room_images import RoomImage
@@ -14,14 +14,13 @@ class RoomTypeRequest(BaseModel):
 
 
 @router.post("/roomtypes/details")
-def get_roomtype_details(
+async def get_roomtype_details(
     payload: RoomTypeRequest,
     db: AsyncSession = Depends(get_db)
 ):
     if not payload.room_type_ids:
         raise HTTPException(status_code=400, detail="room_type_ids cannot be empty")
 
-    # 1️⃣ Lấy danh sách RoomType
     stmt = select(
         RoomType.id,
         RoomType.name,
@@ -30,25 +29,22 @@ def get_roomtype_details(
         RoomType.price
     ).where(RoomType.id.in_(payload.room_type_ids))
 
-    result = db.execute(stmt)
+    result = await db.execute(stmt)
     room_types = result.all()
 
-    # Nếu không có kết quả
     if not room_types:
         raise HTTPException(status_code=404, detail="No room types found")
 
     output = []
 
     for rt in room_types:
-        # 2️⃣ Lấy Offer của RoomType
-        offers_result = db.execute(
+        offers_result = await db.execute(
             select(Offer.id, Offer.cost)
             .where(Offer.room_type_id == rt.id)
         )
         offers = [{"id": o.id, "cost": float(o.cost)} for o in offers_result.all()]
 
-        # 3️⃣ Lấy hình (không bị soft delete)
-        img_result = db.execute(
+        img_result = await db.execute(
             select(RoomImage.url)
             .where(RoomImage.room_type_id == rt.id, RoomImage.is_deleted == False)
         )
