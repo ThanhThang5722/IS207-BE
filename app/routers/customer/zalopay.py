@@ -13,6 +13,7 @@ from app.models.invoice import Invoice
 from app.models.offer import Offer
 from app.models.room_type import RoomType
 from app.db_async import get_db
+from app.services.booking_timeslot_service import create_booking_timeslots
 from app.schemas.zalopay import (
     CreatePaymentRequest,
     CreatePaymentResponse,
@@ -139,6 +140,10 @@ async def zalopay_callback(callback: ZaloPayCallback, db: AsyncSession = Depends
                 payment_method="ZALOPAY"
             )
             db.add(invoice)
+            await db.flush()
+            
+            # Tạo BookingTimeSlot cho các phòng được book
+            await create_booking_timeslots(db, detail, invoice_id=invoice.id)
         
         await db.commit()
 
@@ -187,6 +192,10 @@ async def query_payment(
                     payment_method="ZALOPAY"
                 )
                 db.add(invoice)
+                await db.flush()
+                
+                # Tạo BookingTimeSlot cho các phòng được book
+                await create_booking_timeslots(db, detail, invoice_id=invoice.id)
             
             await db.commit()
 
