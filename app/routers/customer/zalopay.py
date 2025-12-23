@@ -45,10 +45,15 @@ async def create_payment(
     customer_id = current_account.customer.id
 
     result = await db.execute(
-        select(Booking).filter(
+        select(Booking)
+        .filter(
             Booking.id == request.booking_id,
             Booking.customer_id == customer_id,
             Booking.status == "pending"
+        )
+        .options(
+            selectinload(Booking.booking_details)
+            .selectinload(BookingDetail.offer)
         )
     )
     booking = result.scalar_one_or_none()
@@ -59,7 +64,28 @@ async def create_payment(
             detail="Không tìm thấy booking hoặc booking không thuộc về bạn"
         )
 
-    amount = int(booking.cost or 0)
+    # Tính lại tổng giá để đảm bảo chính xác (giá = số phòng * giá/đêm * số đêm)
+    total_cost = Decimal("0")
+    for detail in booking.booking_details:
+        if detail.started_at and detail.finished_at and detail.offer:
+            num_days = (detail.finished_at.date() - detail.started_at.date()).days
+            if num_days < 1:
+                num_days = 1
+            offer_price = detail.offer.cost or Decimal("0")
+            detail_cost = detail.number_of_rooms * offer_price * num_days
+            
+            # Cập nhật cost của detail nếu khác
+            if detail.cost != detail_cost:
+                detail.cost = detail_cost
+            
+            total_cost += detail_cost
+    
+    # Cập nhật tổng cost của booking
+    if booking.cost != total_cost:
+        booking.cost = total_cost
+        await db.commit()
+
+    amount = int(total_cost)
     if amount <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -132,6 +158,14 @@ async def zalopay_callback(callback: ZaloPayCallback, db: AsyncSession = Depends
         for detail in booking.booking_details:
             detail.status = "PAID"
             
+            # Tính lại giá để đảm bảo chính xác (giá = số phòng * giá/đêm * số đêm)
+            if detail.started_at and detail.finished_at and detail.offer:
+                num_days = (detail.finished_at.date() - detail.started_at.date()).days
+                if num_days < 1:
+                    num_days = 1
+                offer_price = detail.offer.cost or Decimal("0")
+                detail.cost = detail.number_of_rooms * offer_price * num_days
+            
             # Lấy partner_id từ resort
             partner_id = detail.offer.room_type.resort.partner_id
             
@@ -149,6 +183,9 @@ async def zalopay_callback(callback: ZaloPayCallback, db: AsyncSession = Depends
             
             # Tạo BookingTimeSlot cho các phòng được book
             await create_booking_timeslots(db, detail, invoice_id=invoice.id)
+        
+        # Cập nhật lại tổng cost của booking
+        booking.cost = sum(d.cost or Decimal("0") for d in booking.booking_details)
         
         await db.commit()
         
@@ -206,6 +243,14 @@ async def query_payment(
             for detail in booking.booking_details:
                 detail.status = "PAID"
                 
+                # Tính lại giá để đảm bảo chính xác (giá = số phòng * giá/đêm * số đêm)
+                if detail.started_at and detail.finished_at and detail.offer:
+                    num_days = (detail.finished_at.date() - detail.started_at.date()).days
+                    if num_days < 1:
+                        num_days = 1
+                    offer_price = detail.offer.cost or Decimal("0")
+                    detail.cost = detail.number_of_rooms * offer_price * num_days
+                
                 # Lấy partner_id từ resort
                 partner_id = detail.offer.room_type.resort.partner_id
                 
@@ -223,6 +268,9 @@ async def query_payment(
                 
                 # Tạo BookingTimeSlot cho các phòng được book
                 await create_booking_timeslots(db, detail, invoice_id=invoice.id)
+            
+            # Cập nhật lại tổng cost của booking
+            booking.cost = sum(d.cost or Decimal("0") for d in booking.booking_details)
             
             await db.commit()
             

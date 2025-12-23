@@ -63,7 +63,13 @@ async def add_booking_detail(db: AsyncSession, booking_id: int, booking_detail: 
     else:
         offer_price = Decimal("0")
     
-    item_cost = booking_detail.number_of_rooms * offer_price
+    # Tính số ngày ở (tính theo date, không phải datetime)
+    num_days = (booking_detail.finished_at.date() - booking_detail.started_at.date()).days
+    if num_days < 1:
+        num_days = 1
+    
+    # Giá = số phòng * giá mỗi đêm * số đêm
+    item_cost = booking_detail.number_of_rooms * offer_price * num_days
 
     new_booking_detail = BookingDetail(
         booking_id=booking_id,
