@@ -88,6 +88,11 @@ async def search_resorts(
     result = await db.execute(stmt)
     resorts = result.all()
 
+    # Tính số ngày ở
+    num_days = (checkout_date - checkin_date).days
+    if num_days < 1:
+        num_days = 1
+
     # 4️⃣ Gắn thêm images và services
     output = []
     for r in resorts:
@@ -105,12 +110,17 @@ async def search_resorts(
         )
         services = [row[0] for row in sv_result.all()]
 
+        # Nhân giá gốc với số ngày ở
+        total_price = float(r.min_price) * num_days
+
         output.append({
             "id": r.id,
             "name": r.name,
             "address": r.address,
             "rating": r.rating,
-            "min_price": float(r.min_price),
+            "min_price": total_price,
+            "price_per_night": float(r.min_price),
+            "num_nights": num_days,
             "images": images,
             "services": services
         })

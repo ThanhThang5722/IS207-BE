@@ -10,6 +10,7 @@ class CartItemResponse(BaseModel):
     resort_name: Optional[str] = None
     number_of_rooms: int
     price_per_room: float
+    num_nights: int = 1
     cost: float
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None

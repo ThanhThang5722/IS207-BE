@@ -355,7 +355,7 @@
                 <h4>📄 Danh sách hóa đơn</h4>
                 {% for inv in invoices %}
                 <div class="invoice-item">
-                    <span>Hóa đơn #{{ inv.invoice_id }} - {{ inv.finished_time }}</span>
+                    <span>Hóa đơn #{{ inv.invoice_id }} - {{ inv.finished_time }} </span>
                     <span>{{ "{:,}".format(inv.cost|int) }} VND</span>
                 </div>
                 {% endfor %}

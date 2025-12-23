@@ -104,6 +104,7 @@ async def get_cart(
             resort_name=resort.name if resort else None,
             number_of_rooms=detail.number_of_rooms,
             price_per_room=float(offer.cost) if offer and offer.cost else 0,
+            num_nights=(detail.finished_at.date() - detail.started_at.date()).days if detail.started_at and detail.finished_at else 1,
             cost=float(detail.cost) if detail.cost else 0,
             started_at=detail.started_at,
             finished_at=detail.finished_at,
@@ -173,9 +174,14 @@ async def add_to_cart(
         offer = offer_result.scalar_one_or_none()
         offer_price = offer.cost if offer and offer.cost else Decimal("0")
 
+        # Tính số ngày ở (tính theo date, không phải datetime)
+        num_days = (request.finished_at.date() - request.started_at.date()).days
+        if num_days < 1:
+            num_days = 1
+
         old_cost = existing_item.cost or Decimal("0")
         existing_item.number_of_rooms = new_number_of_rooms
-        existing_item.cost = new_number_of_rooms * offer_price
+        existing_item.cost = new_number_of_rooms * offer_price * num_days
 
         # Cập nhật tổng cost của booking
         if cart.cost is None:
@@ -258,10 +264,15 @@ async def update_booking_detail(
     offer = offer_result.scalar_one_or_none()
     offer_price = offer.cost if offer and offer.cost else Decimal("0")
 
+    # Tính số ngày ở (tính theo date, không phải datetime)
+    num_days = (booking_detail.finished_at.date() - booking_detail.started_at.date()).days
+    if num_days < 1:
+        num_days = 1
+
     old_cost = booking_detail.cost or Decimal("0")
 
     booking_detail.number_of_rooms = booking_detail_update.number_of_rooms
-    booking_detail.cost = booking_detail.number_of_rooms * offer_price
+    booking_detail.cost = booking_detail.number_of_rooms * offer_price * num_days
 
     booking = booking_detail.booking
     if booking.cost is None:
@@ -410,17 +421,26 @@ async def process_payment(
     if payment_request.payment_status != "success":
         raise HTTPException(status_code=400, detail="Payment not successful")
 
+    # Tính lại giá để đảm bảo chính xác (giá = số phòng * giá/đêm * số đêm)
+    if booking_detail.started_at and booking_detail.finished_at and booking_detail.offer:
+        num_days = (booking_detail.finished_at.date() - booking_detail.started_at.date()).days
+        if num_days < 1:
+            num_days = 1
+        offer_price = booking_detail.offer.cost or Decimal("0")
+        booking_detail.cost = booking_detail.number_of_rooms * offer_price * num_days
+
     booking_detail.status = "PAID"
     db.add(booking_detail)
 
     # Lấy partner_id từ resort
     partner_id = booking_detail.offer.room_type.resort.partner_id
 
+    # Sử dụng giá đã tính từ server, không dùng giá từ FE
     invoice = Invoice(
         customer_id=booking_detail.booking.customer_id,
         partner_id=partner_id,
         booking_detail_id=booking_detail.id,
-        cost=payment_request.paid_amount,
+        cost=booking_detail.cost,
         payment_method=payment_request.payment_method,
     )
     db.add(invoice)
