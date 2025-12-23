@@ -14,6 +14,7 @@ from app.models.offer import Offer
 from app.models.room_type import RoomType
 from app.db_async import get_db
 from app.services.booking_timeslot_service import create_booking_timeslots
+from app.services.email_service import send_booking_confirmation_email
 from app.schemas.zalopay import (
     CreatePaymentRequest,
     CreatePaymentResponse,
@@ -114,6 +115,7 @@ async def zalopay_callback(callback: ZaloPayCallback, db: AsyncSession = Depends
         select(Booking)
         .filter(Booking.id == booking_id)
         .options(
+            selectinload(Booking.customer),
             selectinload(Booking.booking_details)
             .selectinload(BookingDetail.offer)
             .selectinload(Offer.room_type)
@@ -124,6 +126,8 @@ async def zalopay_callback(callback: ZaloPayCallback, db: AsyncSession = Depends
 
     if booking and booking.status == "pending":
         booking.status = "paid"
+        created_invoices = []
+        payment_time = datetime.now()
         
         for detail in booking.booking_details:
             detail.status = "PAID"
@@ -136,16 +140,35 @@ async def zalopay_callback(callback: ZaloPayCallback, db: AsyncSession = Depends
                 partner_id=partner_id,
                 booking_detail_id=detail.id,
                 cost=detail.cost,
-                finished_time=datetime.now(),
+                finished_time=payment_time,
                 payment_method="ZALOPAY"
             )
             db.add(invoice)
             await db.flush()
+            created_invoices.append(invoice)
             
             # Tạo BookingTimeSlot cho các phòng được book
             await create_booking_timeslots(db, detail, invoice_id=invoice.id)
         
         await db.commit()
+        
+        # Gửi email xác nhận kèm hóa đơn
+        try:
+            customer = booking.customer
+            if customer and customer.email:
+                await send_booking_confirmation_email(
+                    customer_email=customer.email,
+                    customer_name=customer.fullname,
+                    customer_phone=customer.phone_number,
+                    booking_id=booking.id,
+                    booking_details=booking.booking_details,
+                    invoices=created_invoices,
+                    total_cost=float(booking.cost or 0),
+                    payment_method="ZALOPAY",
+                    payment_time=payment_time
+                )
+        except Exception as e:
+            print(f"Failed to send booking confirmation email: {e}")
 
     return {"return_code": 1, "return_message": "success"}
 
@@ -166,6 +189,7 @@ async def query_payment(
             select(Booking)
             .filter(Booking.zp_trans_id == request.app_trans_id)
             .options(
+                selectinload(Booking.customer),
                 selectinload(Booking.booking_details)
                 .selectinload(BookingDetail.offer)
                 .selectinload(Offer.room_type)
@@ -176,6 +200,8 @@ async def query_payment(
         
         if booking and booking.status == "pending":
             booking.status = "paid"
+            created_invoices = []
+            payment_time = datetime.now()
             
             for detail in booking.booking_details:
                 detail.status = "PAID"
@@ -188,16 +214,35 @@ async def query_payment(
                     partner_id=partner_id,
                     booking_detail_id=detail.id,
                     cost=detail.cost,
-                    finished_time=datetime.now(),
+                    finished_time=payment_time,
                     payment_method="ZALOPAY"
                 )
                 db.add(invoice)
                 await db.flush()
+                created_invoices.append(invoice)
                 
                 # Tạo BookingTimeSlot cho các phòng được book
                 await create_booking_timeslots(db, detail, invoice_id=invoice.id)
             
             await db.commit()
+            
+            # Gửi email xác nhận kèm hóa đơn
+            try:
+                customer = booking.customer
+                if customer and customer.email:
+                    await send_booking_confirmation_email(
+                        customer_email=customer.email,
+                        customer_name=customer.fullname,
+                        customer_phone=customer.phone_number,
+                        booking_id=booking.id,
+                        booking_details=booking.booking_details,
+                        invoices=created_invoices,
+                        total_cost=float(booking.cost or 0),
+                        payment_method="ZALOPAY",
+                        payment_time=payment_time
+                    )
+            except Exception as e:
+                print(f"Failed to send booking confirmation email: {e}")
 
     return QueryPaymentResponse(
         return_code=result.get("return_code"),
