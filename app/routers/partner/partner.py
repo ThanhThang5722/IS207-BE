@@ -147,12 +147,12 @@ async def get_partner_statistics(
     ]
 
     withdrawal_result = await db.execute(
-        select(Withdraw.id, Withdraw.transaction_amount.label("amount"), Withdraw.created_at)
+        select(Withdraw.id, Withdraw.transaction_amount.label("amount"), Withdraw.created_at, Withdraw.status)
         .where(Withdraw.partner_id == partner_id)
         .order_by(Withdraw.created_at.desc())
     )
     withdrawals = [
-        {"id": row.id, "amount": float(row.amount), "time": row.created_at, "type": "WITHDRAW"}
+        {"id": row.id, "amount": float(row.amount), "time": row.created_at, "status": row.status, "type": "WITHDRAW"}
         for row in withdrawal_result.all()
     ]
 
